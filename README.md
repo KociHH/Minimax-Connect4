@@ -28,4 +28,4 @@ python main.py
 
 ## Требования
 
-# Python 3.10 или выше
+Python 3.10 или выше
