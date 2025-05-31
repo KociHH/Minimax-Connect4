@@ -37,7 +37,7 @@ class Game:
         screen.blit(text, (10, 10))
 
     def make_move(self, col, player):
-        print(self.board)
+        print(self.board, end="\n\n")
         if self.board[0, col] != 0: 
             return False
         for row in reversed(range(BOARD_ROWS)):
@@ -71,7 +71,6 @@ def main():
                         print('Сделан ход игрока')
                         game.draw_board(screen)
                         pygame.display.flip()
-                        pygame.time.wait(300)
                         game.turn = game.ai
 
         if not game.game_over and game.turn == game.ai:
