@@ -1,7 +1,7 @@
 import pygame
 import sys
 from .utils import *
-from .core import System, MiniMax
+from .core import System, MiniMax, best_moves
 import numpy as np
 
 
@@ -27,7 +27,7 @@ class Game:
                 elif cell_value == self.ai:
                     color = COLORS['RED']
                 else:
-                    color = COLORS['BLACK']  
+                    color = COLORS['WHITE']  
                 pygame.draw.circle(screen, color, 
                     (col * CELL_SIZE + CELL_SIZE // 2, (row + 1) * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 2 - 5)
         
@@ -53,7 +53,7 @@ class Game:
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("BALDEJ")
+    pygame.display.set_caption("Connect Four")
     game = Game()
     clock = pygame.time.Clock()
         
@@ -82,12 +82,19 @@ def main():
                 game.turn = game.human 
         
         if game.game_over:
-            screen.fill(COLORS['WHITE'])
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay.fill(COLORS['LIGHT_WHITE'])
+            screen.blit(overlay, (0, 0))
+            
             text_winner = game.font.render(f'{game.winner} Winner', True, COLORS['BLACK'])
             rect = text_winner.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(text_winner, rect)
+            
             pygame.display.flip()
             print(game.board)
+            print(f'Лучшие ходы за партию:')
+            for i in range(len(best_moves)):
+                print(f'{i + 1}. {best_moves[i]}')
             while True:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:

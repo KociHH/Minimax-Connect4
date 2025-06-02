@@ -2,9 +2,7 @@ import numpy as np
 from .utils import *
 from scipy.signal import convolve2d
 
-# board.shape[0] = rows
-# board.shape[1] = cols
-
+best_moves = []
 score = {
     4: 10000,
     3: 500,
@@ -14,7 +12,7 @@ score = {
 
 bonus = {
     2: 10,
-    3: 20,
+    3: 15,
     4: 10,
 }
 
@@ -43,7 +41,7 @@ class System:
         )    
         
 class MiniMax:
-    def __init__(self, depth=5, player=-1):
+    def __init__(self, depth: int = 5, player: int = -1):
         self.depth = depth 
         self.player = player
         self.system = System()
@@ -77,9 +75,12 @@ class MiniMax:
         if forced_move is not None:
             return forced_move    
           
-        adaptive_depth = self.get_adaptive_depth(board, depth_start=4)  
+        adaptive_depth = self.get_adaptive_depth(board)  
         _, col = self.minimax(board, adaptive_depth, -np.inf, np.inf, True)
-        print(f'Лучший ход: ({_}, {col})')
+        
+        b = ({_}, {col})
+        print(f'Лучший ход: ({b})')
+        best_moves.append(b)
         return col
         
     def minimax(self, board, depth, alpha, beta, maximizing):
@@ -95,13 +96,13 @@ class MiniMax:
         
         valid_moves = sorted(valid_moves, key=lambda x: abs(x - 3))
         best_col = valid_moves[0]
-        
+        # ходы AI
         if maximizing:
             max_eval = -np.inf # alpha
             for col in valid_moves:
                 child = self.make_move(board, col, self.player) 
-                eval, _ = self.minimax(child, depth-1, alpha, beta, False) # ответ игрока
-                print(f'Ход в колонку {col}: оценка = {eval}')
+                eval, _ = self.minimax(child, depth-1, alpha, beta, False)
+                print(f'Ход AI в колонку {col}: оценка = {eval}')
                 if eval > max_eval:
                     max_eval = eval
                     best_col = col
@@ -110,10 +111,12 @@ class MiniMax:
                     break
             return max_eval, best_col
         else:
+            # ходы Human
             min_eval = np.inf # beta
             for col in valid_moves:
                 child = self.make_move(board, col, -self.player) 
-                eval, _ = self.minimax(child, depth-1, alpha, beta, True) # ответ ии
+                eval, _ = self.minimax(child, depth-1, alpha, beta, True)
+                print(f'Ход Human в колонку {col}: оценка = {eval}')
                 if eval < min_eval:
                     min_eval = eval
                     best_col = col
@@ -125,11 +128,34 @@ class MiniMax:
     def evaluate(self, board):
         ai_score = 0
         human_score = 0
-        
         if self.system.check_win(board, self.player):
             return 10000
         if self.system.check_win(board, -self.player):
             return -10000
+        
+        if self.depth % 2 == 0:
+            for col in self.valid_moves(board):
+                test_board = self.make_move(board, col, -self.player)
+                if self.detect_potential_double_threats(test_board, -self.player):
+                    return -9500
+                else:
+                    for col2 in self.valid_moves(test_board):
+                        test_board_2 = self.make_move(test_board, col2, -self.player)
+                        if self.detect_potential_double_threats(test_board_2, -self.player):
+                            return -9500
+        
+        ai_threats, ai_double, _ = self.detect_threats(board, self.player)
+        human_threats, human_double, _ = self.detect_threats(board, -self.player)
+        
+        if ai_double:
+            return 9500
+        if human_double:
+            return -9500
+        
+        if self.detect_potential_double_threats(board, self.player):
+            return 9000
+        if self.detect_potential_double_threats(board, -self.player):
+            return -9000
         
         for player in [self.player, -self.player]:
             player_score = 0
@@ -147,23 +173,38 @@ class MiniMax:
             player_score += center_bonus
         
             if player == self.player:
-                ai_score = player_score
+                ai_score = player_score + (ai_threats * 2000)
             else:
-                human_score = player_score
+                human_score = player_score + (human_threats * -2000)
                 
-        threats = self.detect_immediate_threats(board, -self.player) * 1000
-        return ai_score - human_score - threats    
+        return ai_score - human_score
     
-    def detect_immediate_threats(self, board, opponent):
+    def detect_threats(self, board, opponent):
         threats = 0
+        threat_cols = []
         for col in range(board.shape[1]):
             if board[0, col] == 0:
                 test_board = self.make_move(board, col, opponent)
                 if self.system.check_win(test_board, opponent):
                     threats += 1  
-        return threats  
+                    threat_cols.append(col)
+                    
+        double_threat = threats >= 2
+        return threats, double_threat, threat_cols
+
+    def detect_potential_double_threats(self, board, player):
+        for col in self.valid_moves(board):
+            test_board = self.make_move(board, col, player)
+            threats, _, _ = self.detect_threats(test_board, player)
+            if threats >= 2:
+                return True
+        return False 
 
     def get_forced_move(self, board):
+        _, _, threat_cols = self.detect_threats(board, -self.player)
+        if threat_cols:
+            return threat_cols[0]
+        
         for col in self.valid_moves(board):
             test_board = self.make_move(board, col, self.player)
             if self.system.check_win(test_board, self.player):
@@ -175,11 +216,13 @@ class MiniMax:
                 return col
         return None
     
-    def get_adaptive_depth(self, board, depth_start: int = 4):
+    def get_adaptive_depth(self, board):
         filled_cells = np.count_nonzero(board)
         if filled_cells < 10:
-            return depth_start
-        elif filled_cells < 30:
+            return self.depth
+        elif filled_cells < 20:
             return 6
-        else:
+        elif filled_cells < 30:
             return 8
+        else:
+            return 10
