@@ -1,6 +1,7 @@
 import numpy as np
 from .utils import *
 from scipy.signal import convolve2d
+import random
 
 best_moves = []
 score = {
@@ -221,8 +222,10 @@ class MiniMax:
         if filled_cells < 10:
             return self.depth
         elif filled_cells < 20:
-            return 6
-        elif filled_cells < 30:
             return 8
+        elif filled_cells < 30:
+            return 10
+        elif filled_cells <= 7:
+            return 12
         else:
             return 10
